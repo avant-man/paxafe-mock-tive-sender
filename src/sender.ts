@@ -9,6 +9,8 @@ export interface Target {
   apiKey?: string;
   /** True when the URL or key came from a per-request override. */
   overridden?: boolean;
+  /** True when the URL differs from TARGET_URL. Such a target goes through the SSRF guard. */
+  urlOverridden?: boolean;
 }
 
 export interface SendResult {
@@ -129,6 +131,7 @@ async function sendStep(
       method: 'POST',
       headers,
       body: step.body,
+      redirect: 'manual',
       signal: AbortSignal.timeout(timeoutMs),
     });
     const text = await res.text();
@@ -214,7 +217,24 @@ export function readBody(httpStatus: number, body: unknown): ParsedBody {
   };
 }
 
-export function evaluate(expect: Expectation, httpStatus: number, body: ParsedBody): { matched: boolean; mismatch: string | null } {
+export function evaluate(
+  expect: Omit<Expectation, 'note'>,
+  httpStatus: number,
+  body: ParsedBody,
+): { matched: boolean; mismatch: string | null } {
+  const primary = evaluateOne(expect, httpStatus, body);
+  if (primary.matched) return primary;
+  for (const alt of expect.alternatives ?? []) {
+    if (evaluateOne(alt, httpStatus, body).matched) return { matched: true, mismatch: null };
+  }
+  return primary;
+}
+
+function evaluateOne(
+  expect: Omit<Expectation, 'note' | 'alternatives'>,
+  httpStatus: number,
+  body: ParsedBody,
+): { matched: boolean; mismatch: string | null } {
   const problems: string[] = [];
   if (!expect.httpStatus.includes(httpStatus)) problems.push(`HTTP ${httpStatus}, expected ${expect.httpStatus.join(' or ')}`);
   if (expect.apiStatus && !expect.apiStatus.includes(body.apiStatus)) {

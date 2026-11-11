@@ -60,6 +60,11 @@ export interface Expectation {
   warningCodes?: string[];
   /** For batch requests: the number of items in `results`. */
   batchSize?: number;
+  /**
+   * Other answers that also count as expected, for a request whose outcome depends on how
+   * the target is set up (for example a key scoped to one account). Any one match is enough.
+   */
+  alternatives?: Omit<Expectation, 'note' | 'alternatives'>[];
   /** One line that says what this request tests. */
   note: string;
 }

@@ -29,7 +29,7 @@ function el(tag, attrs = {}, ...children) {
 async function api(path, init = {}) {
   const res = await fetch(path, init);
   const text = await res.text();
-  let body = null;
+  let body;
   try { body = text ? JSON.parse(text) : null; } catch { body = text; }
   if (!res.ok && res.status !== 502) {
     const msg = body && typeof body === 'object' ? body.message || body.error : text;
@@ -224,7 +224,7 @@ function renderResults() {
       el('td', { 'data-label': '#', class: 'num', text: String(r.index + 1) }),
       el('td', { 'data-label': 'Request', class: 'wide' },
         el('div', { class: 'label', text: r.label }),
-        el('div', { class: 'note', text: r.expect.note }),
+        el('div', { class: 'note', text: r.expect.note, title: expectationText(r.expect) }),
         r.imei ? el('div', { class: 'codes mono', text: r.imei }) : null),
       el('td', { 'data-label': 'HTTP' }, chip(r.httpStatus === 0 ? 'ERR' : String(r.httpStatus), httpTone(r.httpStatus))),
       el('td', { 'data-label': 'API status' }, chip(r.apiStatus, statusTone(r.apiStatus)),
@@ -243,7 +243,7 @@ function renderResults() {
           el('button', {
             type: 'button', class: 'btn small', 'aria-expanded': String(open), 'aria-controls': detailId,
             text: open ? 'Hide JSON' : 'JSON',
-            onclick: () => { open ? state.expanded.delete(r.index) : state.expanded.add(r.index); renderResults(); },
+            onclick: () => { if (open) state.expanded.delete(r.index); else state.expanded.add(r.index); renderResults(); },
           }),
           r.imei && /^[0-9]{15}$/.test(r.imei)
             ? el('button', { type: 'button', class: 'btn small', text: 'Verify', 'aria-label': `Verify device ${r.imei}`, onclick: () => verify(r.imei) })
@@ -318,6 +318,17 @@ async function verify(imei) {
   } catch (err) {
     $('verify-meta').textContent = `Verify failed: ${err.message}`;
   }
+}
+
+function expectationText(e) {
+  const one = (x) => [
+    `HTTP ${x.httpStatus.join(' or ')}`,
+    x.apiStatus ? `status ${x.apiStatus.join(' or ')}` : null,
+    x.errorCodes?.length ? `errors ${x.errorCodes.join(', ')}` : null,
+    x.warningCodes?.length ? `warnings ${x.warningCodes.join(', ')}` : null,
+  ].filter(Boolean).join(', ');
+  const alts = (e.alternatives || []).map((a) => ` Also expected: ${one(a)}.`).join('');
+  return `Expected: ${one(e)}.${alts}`;
 }
 
 function pretty(v) {

@@ -11,13 +11,19 @@ export interface FleetDevice {
   publicShipmentId: string;
 }
 
+/**
+ * The demo account. Every realistic and edge-case payload uses it, so a deployed sender
+ * can use an API key scoped to this one account.
+ */
+export const DEMO_ACCOUNT_ID = 478;
+
 /** The default fleet: fixed IMEIs, so readings from many runs pile up on the same devices. */
 export const DEFAULT_FLEET: readonly FleetDevice[] = [
   {
     imei: '864475040010017',
     name: 'T100201',
     laneId: 'pharr-bronx',
-    accountId: 478,
+    accountId: DEMO_ACCOUNT_ID,
     shipmentId: 'CL-20417/PHARMA-SHIP/COLD-LOGISTICS',
     publicShipmentId: 'K7Q2M9TX4B',
   },
@@ -25,7 +31,7 @@ export const DEFAULT_FLEET: readonly FleetDevice[] = [
     imei: '864475040010025',
     name: 'T100202',
     laneId: 'memphis-chicago',
-    accountId: 478,
+    accountId: DEMO_ACCOUNT_ID,
     shipmentId: 'PO-55120/INSULIN-LANE',
     publicShipmentId: 'R3HW8N2PLC',
   },
@@ -33,7 +39,7 @@ export const DEFAULT_FLEET: readonly FleetDevice[] = [
     imei: '864475040010033',
     name: 'T100203',
     laneId: 'durham-boston',
-    accountId: 478,
+    accountId: DEMO_ACCOUNT_ID,
     shipmentId: 'INV-78034/BIOLOGICS',
     publicShipmentId: 'Z5TB1VQ8MK',
   },

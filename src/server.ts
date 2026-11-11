@@ -1,17 +1,33 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { getConnInfo } from '@hono/node-server/conninfo';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { getCookie, setCookie } from 'hono/cookie';
 import { TargetError, resolveTarget, type Config, type Overrides } from './config.js';
 import { buildPlan, listScenarios, UnknownScenarioError } from './generators/index.js';
 import { RunHistory } from './history.js';
+import { TokenBucket } from './rateLimit.js';
 import { runPlan, type FetchLike, type Target } from './sender.js';
+import { assertPublicHost, guardedFetch, resolveHostDns, type ResolveHost } from './targetGuard.js';
 
 export interface AppDeps {
   config: Config;
+  /** fetch for the configured TARGET_URL. */
   fetchImpl?: FetchLike;
+  /** fetch for an override URL. Defaults to guardedFetch (address check at connect time, no redirects). */
+  overrideFetchImpl?: FetchLike;
+  /** DNS lookup for the override address check. Injected in tests. */
+  resolveHost?: ResolveHost;
   history?: RunHistory;
+  now?: () => number;
 }
+
+type Env = { Variables: { session: string } };
+
+export const SESSION_COOKIE = 'sender_session';
+const SESSION_ID = /^[0-9a-f-]{36}$/;
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 const STATIC_FILES: Record<string, { file: string; type: string }> = {
@@ -24,14 +40,43 @@ const STATIC_FILES: Record<string, { file: string; type: string }> = {
 const IMEI = /^[0-9]{15}$/;
 const startedAt = Date.now();
 
-export function createApp({ config, fetchImpl = fetch, history = new RunHistory(200) }: AppDeps): Hono {
-  const app = new Hono();
+export function createApp({
+  config,
+  fetchImpl = fetch,
+  overrideFetchImpl = guardedFetch,
+  resolveHost = resolveHostDns,
+  history = new RunHistory(200),
+  now = Date.now,
+}: AppDeps): Hono<Env> {
+  const app = new Hono<Env>();
+  const perIp = new TokenBucket(config.sendPerMinute, now);
+  const global = new TokenBucket(config.sendPerMinuteGlobal, now);
+
+  /** Picks the target and, for an override URL, checks its addresses after DNS. */
+  async function targetFor(overrides: Overrides): Promise<{ target: Target; fetchFn: FetchLike }> {
+    const target = resolveTarget(config, overrides);
+    if (!target.urlOverridden) return { target, fetchFn: fetchImpl };
+    await assertPublicHost(new URL(target.url).hostname.replace(/^\[|\]$/g, ''), resolveHost);
+    return { target, fetchFn: overrideFetchImpl };
+  }
 
   app.use('*', async (c, next) => {
     await next();
     c.header('X-Content-Type-Options', 'nosniff');
     c.header('Referrer-Policy', 'no-referrer');
     c.header('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'");
+  });
+
+  // One random id per browser. Run history is scoped to it, so visitors do not see each other's runs.
+  app.use('*', async (c, next) => {
+    let session = getCookie(c, SESSION_COOKIE);
+    if (!session || !SESSION_ID.test(session)) {
+      session = randomUUID();
+      const https = c.req.header('X-Forwarded-Proto') === 'https' || new URL(c.req.url).protocol === 'https:';
+      setCookie(c, SESSION_COOKIE, session, { httpOnly: true, sameSite: 'Lax', secure: https, path: '/', maxAge: 7 * 24 * 3600 });
+    }
+    c.set('session', session);
+    await next();
   });
 
   app.onError((err, c) => {
@@ -50,12 +95,15 @@ export function createApp({ config, fetchImpl = fetch, history = new RunHistory(
       targetUrl: config.targetUrl,
       keyConfigured: Boolean(config.targetApiKey),
       allowOverride: config.allowOverride,
+      targetAllowlist: config.allowOverride ? config.targetAllowlist : [],
     }),
   );
 
   app.get('/api/scenarios', (c) => c.json({ scenarios: listScenarios() }));
 
   app.post('/api/send', bodyLimit({ maxSize: 64 * 1024 }), async (c) => {
+    const limited = takeToken(c, perIp, clientIp(c, config.trustProxy)) ?? takeToken(c, global, 'all');
+    if (limited) return limited;
     const input = await c.req.json().catch(() => null);
     if (!input || typeof input !== 'object') return c.json({ error: 'bad_request', message: 'Body must be a JSON object' }, 400);
     const { scenario, count, seed, overrides } = input as Record<string, unknown>;
@@ -66,43 +114,42 @@ export function createApp({ config, fetchImpl = fetch, history = new RunHistory(
     if (seed !== undefined && seed !== null && (typeof seed !== 'number' || !Number.isInteger(seed))) {
       return c.json({ error: 'bad_request', message: 'seed must be an integer' }, 400);
     }
-    const target = resolveTarget(config, readOverrides(overrides));
+    const info = listScenarios().find((s) => s.id === scenario);
+    if (info && typeof count === 'number' && count > info.maxCount) {
+      return c.json({ error: 'bad_request', message: `count for ${scenario} must be at most ${info.maxCount}` }, 400);
+    }
+    const { target, fetchFn } = await targetFor(readOverrides(overrides));
     const plan = buildPlan(scenario, {
       count: count as number | undefined,
       seed: typeof seed === 'number' ? seed : undefined,
     });
     const run = await runPlan(plan, target, {
-      fetchImpl,
+      fetchImpl: fetchFn,
       timeoutMs: config.requestTimeoutMs,
       count: typeof count === 'number' ? count : undefined,
     });
-    history.add(run);
+    history.add(run, c.get('session'));
     return c.json(run);
   });
 
-  app.get('/api/history', (c) => c.json({ runs: history.list() }));
+  app.get('/api/history', (c) => c.json({ runs: history.list(c.get('session')) }));
 
   app.get('/api/history/:id', (c) => {
-    const run = history.get(c.req.param('id'));
+    const run = history.get(c.req.param('id'), c.get('session'));
     return run ? c.json(run) : c.json({ error: 'not_found' }, 404);
-  });
-
-  app.delete('/api/history', (c) => {
-    history.clear();
-    return c.body(null, 204);
   });
 
   app.get('/api/verify/:imei', async (c) => {
     const imei = c.req.param('imei');
     if (!IMEI.test(imei)) return c.json({ error: 'bad_request', message: 'IMEI must be 15 digits' }, 400);
     const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? 20) || 20));
-    const target = resolveTarget(config, headerOverrides(c));
-    return proxyGet(c, target, `/api/devices/${imei}/readings?limit=${limit}`, fetchImpl, config.requestTimeoutMs);
+    const { target, fetchFn } = await targetFor(headerOverrides(c));
+    return proxyGet(c, target, `/api/devices/${imei}/readings?limit=${limit}`, fetchFn, config.requestTimeoutMs);
   });
 
   app.get('/api/target/health', async (c) => {
-    const target = resolveTarget(config, headerOverrides(c));
-    return proxyGet(c, target, '/health', fetchImpl, config.requestTimeoutMs);
+    const { target, fetchFn } = await targetFor(headerOverrides(c));
+    return proxyGet(c, target, '/health', fetchFn, config.requestTimeoutMs);
   });
 
   const files = loadStatic();
@@ -131,6 +178,26 @@ function loadStatic(): Map<string, string> {
   return out;
 }
 
+/** Client IP: first X-Forwarded-For entry behind a trusted proxy (Render), else the socket address. */
+function clientIp(c: Context, trustProxy: boolean): string {
+  if (trustProxy) {
+    const first = c.req.header('X-Forwarded-For')?.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  try {
+    return getConnInfo(c).remote.address ?? 'unknown';
+  } catch {
+    return 'unknown'; // app.request() in tests has no socket
+  }
+}
+
+function takeToken(c: Context, bucket: TokenBucket, key: string): Response | null {
+  const { allowed, retryAfterSec } = bucket.take(key);
+  if (allowed) return null;
+  c.header('Retry-After', String(retryAfterSec));
+  return c.json({ error: 'rate_limited', message: `Too many sends. Try again in ${retryAfterSec} s.`, retryAfterSec }, 429);
+}
+
 function readOverrides(raw: unknown): Overrides {
   if (!raw || typeof raw !== 'object') return {};
   const o = raw as Record<string, unknown>;
@@ -150,6 +217,7 @@ async function proxyGet(c: Context, target: Target, path: string, fetchImpl: Fet
   try {
     const res = await fetchImpl(url, {
       headers: target.apiKey ? { 'X-API-Key': target.apiKey } : {},
+      redirect: 'manual',
       signal: AbortSignal.timeout(timeoutMs),
     });
     const text = await res.text();

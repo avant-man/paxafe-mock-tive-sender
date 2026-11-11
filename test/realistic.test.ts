@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildPlan, listScenarios } from '../src/generators/index.js';
-import { DEFAULT_FLEET, generateRealistic } from '../src/generators/realistic.js';
+import { DEFAULT_FLEET, DEMO_ACCOUNT_ID, generateRealistic } from '../src/generators/realistic.js';
 import { createRng } from '../src/generators/rng.js';
 import { loadSamples } from '../src/generators/samples.js';
 import { schemaErrorPaths, validateTive } from './support/tiveSchema.js';
@@ -170,6 +170,23 @@ describe('scenario plans', () => {
     expect(steps).toHaveLength(13);
     for (const s of steps) expect(s.expect.httpStatus.length).toBeGreaterThan(0);
     const rejected = steps.filter((s) => s.expect.apiStatus?.includes('rejected')).map((s) => s.label);
-    expect(rejected).toEqual(['Device Name Only', 'Entity and Device Name']);
+    expect(rejected).toEqual(['Device Name Only', 'Clinical Supply Shipment', 'Entity and Device Name']);
+    // AccountId 999: rejected with a key scoped to 478, stored with an unscoped key.
+    const clinical = steps.find((s) => s.label === 'Clinical Supply Shipment')!;
+    expect(clinical.expect.errorCodes).toEqual(['ACCOUNT_MISMATCH']);
+    expect(clinical.expect.alternatives?.[0]?.apiStatus).toEqual(['processed', 'duplicate']);
+    expect(clinical.expect.note).toContain('scoped to account 478');
+  });
+
+  it('puts every realistic and edge-case payload in the demo account', () => {
+    const accounts = new Set<unknown>();
+    for (const s of listScenarios()) {
+      if (s.id === 'samples') continue;
+      for (const step of buildPlan(s.id, { seed: 7, count: Math.min(5, s.maxCount) }).steps) {
+        const items = Array.isArray(step.payload) ? step.payload : [step.payload];
+        for (const p of items) if (p && typeof p === 'object' && 'AccountId' in p) accounts.add((p as { AccountId: unknown }).AccountId);
+      }
+    }
+    expect([...accounts]).toEqual([DEMO_ACCOUNT_ID]);
   });
 });

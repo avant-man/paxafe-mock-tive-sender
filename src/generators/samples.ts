@@ -46,10 +46,23 @@ export const SAMPLE_EXPECTATIONS: Record<string, Omit<Expectation, 'note'>> = {
   'Standard Temperature Shipment Update': { httpStatus: [200, 201], apiStatus: STORED },
   // Same key as the standard shipment, different content, and longitude -200.
   'Device A571992 Follow-up Reading': { httpStatus: [200, 201], apiStatus: ['duplicate_conflict', 'partial'] },
-  'Clinical Supply Shipment': { httpStatus: [200, 201], apiStatus: STORED },
+  // AccountId 999. The deployed sender uses a key scoped to the demo account (478), and
+  // the API rejects a reading for another account. An unscoped key stores it.
+  'Clinical Supply Shipment': {
+    httpStatus: [422],
+    apiStatus: ['rejected'],
+    errorCodes: ['ACCOUNT_MISMATCH'],
+    alternatives: [{ httpStatus: [200, 201], apiStatus: STORED }],
+  },
   'Minimal Data Payload': { httpStatus: [200, 201], apiStatus: STORED },
   'Vaccine Shipment Southbound': { httpStatus: [200, 201], apiStatus: STORED },
   'Entity and Device Name': { httpStatus: [422], apiStatus: ['rejected'], errorCodes: ['DEVICE_ID_INVALID'] },
+};
+
+/** Extra text for the UI note (and its tooltip) where the expected outcome needs a reason. */
+const SAMPLE_NOTES: Record<string, string> = {
+  'Clinical Supply Shipment':
+    'AccountId is 999. With a key scoped to account 478 (the demo key) the API answers 422 ACCOUNT_MISMATCH. With an unscoped key it stores the reading. Both count as expected.',
 };
 
 export function sampleSteps(count?: number): Step[] {
@@ -65,7 +78,7 @@ export function sampleSteps(count?: number): Step[] {
       contentType: 'application/json',
       auth: 'default',
       imei: typeof deviceId === 'string' ? deviceId : undefined,
-      expect: { ...expect, note: s.description },
+      expect: { ...expect, note: SAMPLE_NOTES[s.name] ? `${s.description} ${SAMPLE_NOTES[s.name]}` : s.description },
     } satisfies Step;
   });
 }

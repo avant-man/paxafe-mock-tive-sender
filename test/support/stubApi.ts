@@ -11,7 +11,11 @@ type Item = Record<string, unknown>;
 
 const SENTINELS = new Set([327.67, -327.68, 32767, -32768, -3276.8, 3276.7]);
 
-export function createStubApi(apiKey = 'test-key-local'): Hono {
+/**
+ * `accountId` makes the key scoped to one account, like `npm run create-key -- name 478`
+ * in the API: a payload with another AccountId gets 422 ACCOUNT_MISMATCH.
+ */
+export function createStubApi(apiKey = 'test-key-local', opts: { accountId?: number } = {}): Hono {
   const app = new Hono();
   const stored = new Map<string, { hash: string; payload: Item }>();
 
@@ -80,6 +84,10 @@ export function createStubApi(apiKey = 'test-key-local'): Hono {
       if ((epoch as number) > Date.now() + 24 * 3_600_000) {
         errors.push({ code: 'TIMESTAMP_FUTURE', path: 'EntryTimeEpoch', message: 'future' });
       }
+    }
+    const account = p['AccountId'];
+    if (opts.accountId !== undefined && account !== undefined && account !== null && account !== opts.accountId) {
+      errors.push({ code: 'ACCOUNT_MISMATCH', path: 'AccountId', message: 'AccountId does not match the account of this API key' });
     }
     if (errors.length) return reply(422, 'rejected');
 
