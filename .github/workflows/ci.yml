@@ -1,0 +1,45 @@
+name: CI
+
+# This repo has no database. Tests use an in-process stub API. The live contract test
+# (test/contract.live.test.ts) skips here, because LIVE_TARGET_URL and LIVE_TARGET_KEY are not set.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test   # uses an in-process stub API, no network and no Postgres needed
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t paxafe-sender:ci .
+      - name: Boot the image and hit /health
+        run: |
+          docker run -d --name sender -p 10000:10000 -e PORT=10000 -e TARGET_URL=http://127.0.0.1:9 paxafe-sender:ci
+          for i in $(seq 1 20); do curl -fsS localhost:10000/health && exit 0; sleep 1; done
+          docker logs sender; exit 1

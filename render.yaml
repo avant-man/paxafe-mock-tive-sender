@@ -1,16 +1,30 @@
+# Render Blueprint: the mock Tive sender as one Docker web service on the free plan. No database.
+# Runbook: docs/DEPLOY.md
 services:
   - type: web
     name: paxafe-mock-tive-sender
     runtime: docker
     plan: free
+    region: oregon            # same region as the API keeps sender-to-API latency low
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /health  # static, no dependency on the API
+    autoDeployTrigger: checksPass
     envVars:
       - key: TARGET_URL
-        sync: false # base URL of the deployed Integration API, for example https://paxafe-integration-api.onrender.com
+        sync: false # base URL of the deployed API, for example https://paxafe-integration-api.onrender.com (no trailing slash)
       - key: TARGET_API_KEY
-        sync: false # the API key for the Integration API (set in the Render dashboard, never committed)
+        sync: false # a key SCOPED to the demo account: `npm run create-key -- sender-demo 478` in the API repo.
+                    # Never the unscoped seed key: the public Verify button reads with this key.
       - key: ALLOW_TARGET_OVERRIDE
-        value: "true"
+        value: "false" # on a public URL, "true" lets visitors point this server at other hosts.
+                       # Turn on only for a session where a reviewer wants to use their own API, with TARGET_ALLOWLIST set.
+      - key: TARGET_ALLOWLIST
+        value: "" # comma separated hosts an override may use, for example reviewer-api.onrender.com. Empty blocks every URL override.
       - key: REQUEST_TIMEOUT_MS
-        value: "30000" # free-tier targets can take ~30 s to wake up
+        value: "90000" # a sleeping free-tier API takes about 1 minute to wake. 30 s times out on the first send.
+      - key: TRUST_PROXY
+        value: "true" # Render sets X-Forwarded-For. The per-IP send limit reads the client IP from it.
+      - key: SEND_RATE_PER_MINUTE
+        value: "10" # sends per client IP per minute on /api/send
+      - key: SEND_RATE_PER_MINUTE_GLOBAL
+        value: "60" # sends per minute in total, a backstop when a client fakes X-Forwarded-For
