@@ -165,7 +165,7 @@ Example output (samples, second run against a local API):
 - `verify` and `target/health` take overrides as `X-Target-Url` and `X-Target-Key` headers, with the same checks as `/api/send`.
 - A run holds one result per request. A result has the label, IMEI, HTTP status, API status, codes, latency, event id, the expectation and the match.
 - A result also keeps the request and the response. Bodies above 16 KB are kept as a preview only.
-- Errors: 400 `bad_request`, 400 `bad_target`, 400 `unknown_scenario`, 429 `rate_limited` with `Retry-After`. `verify` and `target/health` answer 502 when the target cannot be reached. In a run, a network error is a result with HTTP status 0.
+- Errors: 400 `bad_request` (also for a count that is not a whole number of at least 1), 400 `bad_target`, 400 `unknown_scenario`, 413 `body_too_large` for a send body over 64 KB, 429 `rate_limited` with `Retry-After`. `verify` and `target/health` answer 502 when the target cannot be reached. In a run, a network error is a result with HTTP status 0.
 
 ## 6. Security model
 
@@ -191,7 +191,7 @@ that overrides the URL and gives no key sends no key.
 
 **Rate limits.** `/api/send` has a token bucket per client IP (10 per minute) and one in total
 (60 per minute). The total bucket is the backstop when a client fakes `X-Forwarded-For`. The
-send body is at most 64 KB. Each scenario has a count limit (section 2), so a run has at most
+send body is at most 64 KB, and a larger body gets 413. Each scenario has a count limit (section 2), so a run has at most
 200 requests.
 
 **Session history.** Every response sets a `sender_session` cookie when the request has none.

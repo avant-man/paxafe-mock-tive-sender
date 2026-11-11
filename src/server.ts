@@ -5,6 +5,7 @@ import { getConnInfo } from '@hono/node-server/conninfo';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { getCookie, setCookie } from 'hono/cookie';
+import { HTTPException } from 'hono/http-exception';
 import { TargetError, resolveTarget, type Config, type Overrides } from './config.js';
 import { buildPlan, listScenarios, UnknownScenarioError } from './generators/index.js';
 import { RunHistory } from './history.js';
@@ -82,6 +83,10 @@ export function createApp({
   app.onError((err, c) => {
     if (err instanceof TargetError) return c.json({ error: 'bad_target', message: err.message }, 400);
     if (err instanceof UnknownScenarioError) return c.json({ error: 'unknown_scenario', message: err.message }, 400);
+    // bodyLimit and other Hono middleware throw HTTPException (for example 413). Keep its status.
+    if (err instanceof HTTPException) {
+      return c.json({ error: err.status === 413 ? 'body_too_large' : 'bad_request', message: err.message }, err.status);
+    }
     console.error(err);
     return c.json({ error: 'internal_error', message: err.message }, 500);
   });
@@ -108,8 +113,8 @@ export function createApp({
     if (!input || typeof input !== 'object') return c.json({ error: 'bad_request', message: 'Body must be a JSON object' }, 400);
     const { scenario, count, seed, overrides } = input as Record<string, unknown>;
     if (typeof scenario !== 'string') return c.json({ error: 'bad_request', message: 'scenario is required' }, 400);
-    if (count !== undefined && (typeof count !== 'number' || !Number.isFinite(count))) {
-      return c.json({ error: 'bad_request', message: 'count must be a number' }, 400);
+    if (count !== undefined && (typeof count !== 'number' || !Number.isInteger(count) || count < 1)) {
+      return c.json({ error: 'bad_request', message: 'count must be a whole number of at least 1' }, 400);
     }
     if (seed !== undefined && seed !== null && (typeof seed !== 'number' || !Number.isInteger(seed))) {
       return c.json({ error: 'bad_request', message: 'seed must be an integer' }, 400);

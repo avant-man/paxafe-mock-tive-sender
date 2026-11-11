@@ -76,6 +76,21 @@ describe('sender API against a contract stub', () => {
     expect((await app.request('/app.js')).status).toBe(200);
   });
 
+  it('answers 413 for a send body over 64 KB, not 500', async () => {
+    const { send } = setup();
+    const { status, run } = await send({ scenario: 'realistic', pad: 'x'.repeat(70 * 1024) });
+    expect(status).toBe(413);
+    expect(run).toMatchObject({ error: 'body_too_large' });
+  });
+
+  it('rejects a count that is not a whole number of at least 1', async () => {
+    const { send } = setup();
+    for (const count of [0, -5, 1.5]) {
+      const { status } = await send({ scenario: 'realistic', count });
+      expect(status).toBe(400);
+    }
+  });
+
   it('runs every scenario and every result matches its expectation', async () => {
     const { send } = setup();
     for (const s of listScenarios()) {
