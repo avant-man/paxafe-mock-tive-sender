@@ -1,0 +1,30 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`realistic generator > is stable for a fixed seed and now 1`] = `
+[
+  {
+    "b": 91,
+    "c": 4.640625,
+    "id": "864475040010017",
+    "lat": 28.621432,
+    "m": "gps",
+    "t": 1794395603000,
+  },
+  {
+    "b": 72,
+    "c": 5.296875,
+    "id": "864475040010025",
+    "lat": 36.531301,
+    "m": "wifi",
+    "t": 1794395650000,
+  },
+  {
+    "b": 71,
+    "c": 4.546875,
+    "id": "864475040010033",
+    "lat": 38.513944,
+    "m": "wifi",
+    "t": 1794395672000,
+  },
+]
+`;

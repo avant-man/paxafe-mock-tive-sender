@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock Tive Sender</title>
+  <meta name="description" content="Generate Tive webhook payloads, send them to the PAXAFE Integration API and inspect the results.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#results">Skip to results</a>
+  <header class="top">
+    <div class="brand">
+      <h1>Mock Tive Sender</h1>
+      <p class="sub">Generates Tive payloads, sends them to the Integration API, checks each answer.</p>
+    </div>
+    <div class="target" aria-live="polite">
+      <span class="dot" id="target-dot" aria-hidden="true"></span>
+      <span>Target <code id="target-url">loading</code></span>
+      <span class="pill" id="key-pill">key ?</span>
+      <button type="button" class="btn ghost small" id="check-target">Check target</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="send-title">
+      <h2 id="send-title">Send</h2>
+      <form id="send-form" class="form">
+        <div class="field grow">
+          <label for="scenario">Scenario</label>
+          <select id="scenario" name="scenario" required></select>
+          <p class="hint" id="scenario-desc"></p>
+        </div>
+        <div class="field">
+          <label for="count"><span id="count-label">Count</span></label>
+          <input id="count" name="count" type="number" min="1" step="1" inputmode="numeric" required>
+          <p class="hint" id="count-hint"></p>
+        </div>
+        <div class="field">
+          <label for="seed">Seed <span class="muted">(optional)</span></label>
+          <input id="seed" name="seed" type="number" min="0" step="1" inputmode="numeric" placeholder="random">
+          <p class="hint">Same seed, same payloads.</p>
+        </div>
+        <details class="field full" id="override-box">
+          <summary>Target override (testing)</summary>
+          <div class="override">
+            <div class="field">
+              <label for="override-url">Target URL</label>
+              <input id="override-url" type="url" placeholder="https://your-api.example.com" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="override-key">API key</label>
+              <input id="override-key" type="password" placeholder="uses the server key" autocomplete="off">
+            </div>
+            <p class="hint full">The server key is sent only to the configured target. With a different URL, enter a key here or none is sent.</p>
+          </div>
+        </details>
+        <div class="actions full">
+          <button type="submit" class="btn primary" id="send-btn">Send</button>
+          <span class="status" id="send-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="summary card" id="summary" hidden aria-label="Run summary"></section>
+
+    <section class="card" id="results" aria-labelledby="results-title">
+      <div class="row-head">
+        <h2 id="results-title">Results</h2>
+        <label class="toggle"><input type="checkbox" id="only-unexpected"> Only unexpected</label>
+      </div>
+      <p class="empty" id="empty">No run yet. Pick a scenario and press Send.</p>
+      <div class="table-wrap">
+        <table class="results" id="results-table" hidden>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Request</th>
+              <th scope="col">HTTP</th>
+              <th scope="col">API status</th>
+              <th scope="col" title="Warnings">Warn</th>
+              <th scope="col" title="Errors">Err</th>
+              <th scope="col">Latency</th>
+              <th scope="col">Event id</th>
+              <th scope="col">Expected</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="history-title">
+      <div class="row-head">
+        <h2 id="history-title">History</h2>
+        <span class="muted small-text">In memory, last 200 runs, lost on restart.</span>
+      </div>
+      <ol class="history" id="history"></ol>
+    </section>
+  </main>
+
+  <dialog id="verify-dialog" aria-labelledby="verify-title">
+    <form method="dialog" class="dialog-head">
+      <h2 id="verify-title">Verify</h2>
+      <button class="btn ghost small" value="close" aria-label="Close">Close</button>
+    </form>
+    <p class="muted" id="verify-meta"></p>
+    <div id="verify-summary" class="verify-summary"></div>
+    <pre class="json" id="verify-body"></pre>
+  </dialog>
+</body>
+</html>

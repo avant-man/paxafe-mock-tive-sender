@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: paxafe-mock-tive-sender
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: TARGET_URL
+        sync: false # base URL of the deployed Integration API, for example https://paxafe-integration-api.onrender.com
+      - key: TARGET_API_KEY
+        sync: false # the API key for the Integration API (set in the Render dashboard, never committed)
+      - key: ALLOW_TARGET_OVERRIDE
+        value: "true"
+      - key: REQUEST_TIMEOUT_MS
+        value: "30000" # free-tier targets can take ~30 s to wake up
