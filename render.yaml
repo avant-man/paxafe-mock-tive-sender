@@ -2,7 +2,7 @@ services:
   - type: web
     name: paxafe-mock-tive-sender
     runtime: docker
-    plan: free
+    plan: starter
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
@@ -17,7 +17,7 @@ services:
       - key: TARGET_ALLOWLIST
         value: ""
       - key: REQUEST_TIMEOUT_MS
-        value: "90000" # A sleeping free-tier API takes about 1 minute to wake.
+        value: "30000"
       - key: TRUST_PROXY
         value: "true"
       - key: SEND_RATE_PER_MINUTE

@@ -8,13 +8,26 @@ page UI, a small JSON API and a CLI. It has no database.
 ## Live deployment
 
 ```text
-Mock Tive sender: <SENDER_URL>
-Integration API:  <API_URL>
+Mock Tive sender: https://paxafe-mock-tive-sender-fxkl.onrender.com
+Integration API:  https://paxafe-integration-api-0sed.onrender.com
+Sender source:    https://github.com/avant-man/paxafe-mock-tive-sender
+API source:       https://github.com/avant-man/paxafe-integration-api
 ```
 
-The deploy step fills in these values. The sender keeps its own API key on the server, so you
-do not need a key to use the UI. A free Render service sleeps after 15 minutes. The first send
-can take about 1 minute, because both services wake up.
+The sender runs on Render (Starter plan, Docker, region `oregon`). A push to `main` deploys
+again after CI passes. The sender keeps its own API key on the server, so you do not need a key
+to use the UI.
+
+To call the API yourself, use the test API keys in the submission email: one unscoped key and
+one key scoped to account 478. They are not in this repo. Send a key as
+`X-API-Key: <TEST_API_KEY>`.
+
+Live smoke test results (2026-11-11):
+
+- The API `GET /health` returns `{"status":"ok","db":"ok"}`.
+- Through the live sender, `samples` gives 13 of 13 as expected.
+- Through the live sender, `edge-suite` gives 15 of 15 and `realistic` gives 20 of 20.
+- The live contract test (`test/contract.live.test.ts`) passes 16 of 16 against the deployed API.
 
 The API repo is `paxafe-integration-api`. Its README has the API reference and the error codes.
 
@@ -63,7 +76,7 @@ npm run send -- --scenario samples
 | `PORT` | `4000` | Port of this sender |
 | `ALLOW_TARGET_OVERRIDE` | `false` | `true` lets the UI and the JSON API change the target URL or key per request |
 | `TARGET_ALLOWLIST` | empty | Comma separated hosts that an override URL may use. Empty blocks every URL override |
-| `REQUEST_TIMEOUT_MS` | `15000` | Timeout for each request to the target. `render.yaml` sets 90000 |
+| `REQUEST_TIMEOUT_MS` | `15000` | Timeout for each request to the target. `render.yaml` sets 30000 |
 | `SEND_RATE_PER_MINUTE` | `10` | Sends per client IP per minute on `/api/send` |
 | `SEND_RATE_PER_MINUTE_GLOBAL` | `60` | Sends per minute in total on `/api/send` |
 | `TRUST_PROXY` | `false` | `true` reads the client IP from the first `X-Forwarded-For` entry. Use it only behind a proxy that sets it (Render) |
@@ -224,7 +237,7 @@ the Docker image and checks `/health` in it.
 
 ## 8. Deploy
 
-`render.yaml` defines one Docker web service on Render (free plan, region `oregon`). It deploys
+`render.yaml` defines one Docker web service on Render (Starter plan, region `oregon`). It deploys
 after CI passes. Set `TARGET_URL` and `TARGET_API_KEY` in the dashboard. The key must be scoped
 to the demo account 478 (`npm run create-key -- sender-demo 478` in the API repo).
 [`docs/DEPLOY.md`](docs/DEPLOY.md) has the steps, the smoke test and the steps to let a
@@ -232,7 +245,7 @@ reviewer use their own API for one session.
 
 ## 9. Known limits
 
-- Run history and rate-limit buckets live in memory. A restart or a free-tier sleep clears them. The history keeps the last 200 runs in total.
+- Run history and rate-limit buckets live in memory. A restart or a deploy clears them. The history keeps the last 200 runs in total.
 - The per-IP limit reads the first `X-Forwarded-For` entry when `TRUST_PROXY=true`. A client can fake that entry, so the global limit is the real backstop.
 - Requests in a run go one at a time, because order matters for the duplicate and conflict cases. A long run against a slow API takes a long time.
 - The scenarios cover the rules in the design spec. They do not cover every hostile input that the API tests cover (for example NUL characters or deep nesting).

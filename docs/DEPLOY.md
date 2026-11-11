@@ -1,27 +1,26 @@
 # Deploy runbook: Mock Tive Sender
 
-Target: one Render free web service (Docker). No database. Cost: 0 USD. Time: about 10 minutes.
+Target: one Render Starter web service (Docker, region `oregon`). No database. Time: about 10 minutes.
 Deploy the Integration API first (see `docs/DEPLOY.md` in `paxafe-integration-api`). The sender
 needs its URL and a key.
 
-| Part | Where | URL after deploy |
+| Part | Where | Live URL |
 |---|---|---|
-| Mock Tive sender | Render free web service, Docker | `https://paxafe-mock-tive-sender.onrender.com` |
-| Integration API | Render free web service, Docker | `https://paxafe-integration-api.onrender.com` |
+| Mock Tive sender | Render Starter web service, Docker, `oregon` | `https://paxafe-mock-tive-sender-fxkl.onrender.com` |
+| Integration API | Render Starter web service, Docker, `oregon` | `https://paxafe-integration-api-0sed.onrender.com` |
+
+Source: https://github.com/avant-man/paxafe-mock-tive-sender. A push to `main` deploys again.
 
 Render may add a suffix to a service name that is taken. Use the URL that the dashboard shows.
 
-## 0. Things to know about free tiers
+## 0. Things to know about the platform
 
-- A Render free web service spins down after 15 minutes with no inbound traffic. The next
-  request waits about 1 minute while it starts. Both the sender and the API sleep, so the first
-  send can be slow. `REQUEST_TIMEOUT_MS` is 90000 in `render.yaml` for that reason.
-- Render free web services have 1 instance. The sender keeps its run history and its rate
-  limit buckets in memory, so a restart or a sleep clears both. That is by design.
-- Render gives 750 free instance hours per workspace each month. Two services that sleep when
-  idle stay well inside that.
+- Render Starter services stay running when idle, so the first send is not slow.
+  `REQUEST_TIMEOUT_MS` is 30000 in `render.yaml`.
+- The sender keeps its run history and its rate limit buckets in memory, so a restart or a
+  deploy clears both. That is by design.
 - Render health checks: each request must answer 2xx or 3xx in 5 seconds. `/health` on the
-  sender does not call the API, so a sleeping API does not fail the sender's health check.
+  sender does not call the API, so an API outage does not fail the sender's health check.
 
 ## 1. Make a key scoped to the demo account
 
@@ -30,10 +29,14 @@ The sender is public. Anyone who opens it can click **Verify**, which calls
 unscoped key (such as the API's `seed` key), a visitor could read the readings of any device
 in any account. So the deployed `TARGET_API_KEY` must be a key scoped to the demo account 478.
 
-The API supports account-scoped keys. Render free has no shell, so run this on your laptop
-against the production database (`NEON_DIRECT_URL` from the API runbook):
+The API supports account-scoped keys. Make one in the Render shell of the API service, or from
+your laptop against the production database (`NEON_DIRECT_URL` from the API runbook):
 
 ```bash
+# Render shell (dashboard > paxafe-integration-api > Shell). DATABASE_URL is already set:
+node dist/scripts/create-key.js sender-demo 478
+
+# or from a laptop:
 cd paxafe-integration-api
 npm ci
 DATABASE_URL="$NEON_DIRECT_URL" npm run create-key -- sender-demo 478
@@ -50,16 +53,16 @@ What a key scoped to 478 means for the sender:
 
 ## 2. Deploy the sender on Render
 
-1. Push the repo to GitHub. `render.yaml` and `.github/workflows/ci.yml` are at the repo root.
-   With `autoDeployTrigger: checksPass`, Render deploys only after CI is green. Without CI,
-   change it to `commit`.
+1. The repo is `avant-man/paxafe-mock-tive-sender` on GitHub. `render.yaml` and
+   `.github/workflows/ci.yml` are at the repo root. With `autoDeployTrigger: checksPass`,
+   Render deploys only after CI is green. Without CI, change it to `commit`.
 2. Render dashboard > **New > Blueprint** > pick `paxafe-mock-tive-sender`, branch `main`.
 3. Fill the `sync: false` values:
-   - `TARGET_URL`: `https://paxafe-integration-api.onrender.com` (no trailing slash)
+   - `TARGET_URL`: `https://paxafe-integration-api-0sed.onrender.com` (no trailing slash)
    - `TARGET_API_KEY`: the scoped `api_key` from step 1. Never the unscoped seed key.
 4. Click **Apply**. The log shows:
    ```
-   {"msg":"mock tive sender listening","port":10000,"targetUrl":"https://paxafe-integration-api.onrender.com","keyConfigured":true,"allowOverride":false,"targetAllowlist":[]}
+   {"msg":"mock tive sender listening","port":10000,"targetUrl":"https://paxafe-integration-api-0sed.onrender.com","keyConfigured":true,"allowOverride":false,"targetAllowlist":[]}
    ```
    `keyConfigured` must be `true` and `allowOverride` must be `false`.
 
@@ -69,7 +72,7 @@ What a key scoped to 478 means for the sender:
 |---|---|---|
 | `ALLOW_TARGET_OVERRIDE` | `false` | When `true`, visitors can point the sender at another host |
 | `TARGET_ALLOWLIST` | empty | Hosts that an override may use. Empty blocks every URL override |
-| `REQUEST_TIMEOUT_MS` | `90000` | A sleeping API takes about 1 minute to wake |
+| `REQUEST_TIMEOUT_MS` | `30000` | Each request to the API gets up to 30 seconds |
 | `TRUST_PROXY` | `true` | Render sets `X-Forwarded-For`. The per-IP send limit reads it |
 | `SEND_RATE_PER_MINUTE` | `10` | Sends per client IP per minute |
 | `SEND_RATE_PER_MINUTE_GLOBAL` | `60` | Sends per minute in total. A client can fake `X-Forwarded-For`, so this caps the total load on the API |
@@ -89,14 +92,16 @@ address (169.254.169.254) is refused, also at connect time. Redirects are never 
 
 ## 3. Smoke test the live URLs
 
-```bash
-API=https://paxafe-integration-api.onrender.com
-SENDER=https://paxafe-mock-tive-sender.onrender.com
-KEY='<the scoped sender-demo key>'
+Use the key scoped to 478 from the submission email.
 
-# 1. Wake both services. The first call can take about 1 minute.
-curl -sS --max-time 120 "$API/health"       # {"status":"ok","db":"ok"}
-curl -sS --max-time 120 "$SENDER/health"    # {"status":"ok",...}
+```bash
+API=https://paxafe-integration-api-0sed.onrender.com
+SENDER=https://paxafe-mock-tive-sender-fxkl.onrender.com
+KEY='<TEST_API_KEY>'
+
+# 1. Both services are up.
+curl -sS "$API/health"       # {"status":"ok","db":"ok"}
+curl -sS "$SENDER/health"    # {"status":"ok",...}
 
 # 2. The sender reaches the API.
 curl -sS "$SENDER/api/target/health"        # httpStatus 200, body.db "ok"
@@ -140,12 +145,11 @@ is green. The IMEI `864475040010017` is the first truck of the fixed demo fleet.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Sender run shows `networkErrors` on the first send | The API was asleep | Send again. Keep `REQUEST_TIMEOUT_MS=90000` |
+| Sender run shows `networkErrors` | The API did not answer in 30 s, or it was down or in a deploy | Check the API `/health` and logs, then send again |
 | Every row is 401 | `TARGET_API_KEY` is wrong or not set | Set the scoped key and deploy |
 | Realistic rows are 422 `ACCOUNT_MISMATCH` | The key is scoped to an account other than 478 | Make a key scoped to 478 |
 | Clinical Supply Shipment is 422 `ACCOUNT_MISMATCH` | Expected with a key scoped to 478 | Nothing to fix. It shows as expected |
 | Sender returns 400 `Target overrides are disabled` | `ALLOW_TARGET_OVERRIDE=false` | Expected on the public URL |
 | Sender returns 400 `not on TARGET_ALLOWLIST` | Override on, host not listed | Add the host to `TARGET_ALLOWLIST` |
 | Sender returns 429 `rate_limited` | More than 10 sends a minute from one IP, or 60 in total | Wait for `Retry-After` seconds |
-| History is empty after a visit | The sender slept or restarted (history is in memory), or the browser blocks cookies | Expected. Send again |
-| All Render services suspended | 750 free hours used up for the month | Wait for the next month or upgrade |
+| History is empty after a visit | The sender restarted or deployed again (history is in memory), or the browser blocks cookies | Expected. Send again |
