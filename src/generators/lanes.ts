@@ -1,8 +1,3 @@
-/**
- * Real US cold-chain lanes. Waypoints are city centers along the usual truck route.
- * Addresses use the "City, ST 12345, USA" shape that the Integration API address
- * parser understands; the ends use street addresses.
- */
 export interface Waypoint {
   lat: number;
   lon: number;
@@ -96,10 +91,6 @@ export function laneLengthKm(lane: Lane): number {
   return total;
 }
 
-/**
- * Position at `progress` (0..1) along the lane, by straight-line interpolation
- * between waypoints. `address` is the nearest waypoint's address.
- */
 export function positionAt(lane: Lane, progress: number): { lat: number; lon: number; address: string } {
   const p = Math.min(1, Math.max(0, progress));
   const target = p * laneLengthKm(lane);

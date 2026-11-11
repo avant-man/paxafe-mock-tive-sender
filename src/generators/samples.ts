@@ -26,13 +26,8 @@ export function loadSamples(): SamplePayload[] {
 
 const STORED = ['processed', 'duplicate'];
 
-/**
- * What the Integration API should answer for each provided sample (from DESIGN-SPEC.md).
- * `duplicate` is accepted because the samples have fixed keys, so a second run repeats them.
- */
 export const SAMPLE_EXPECTATIONS: Record<string, Omit<Expectation, 'note'>> = {
   'Standard Temperature Shipment': { httpStatus: [200, 201], apiStatus: STORED },
-  // Same key as the standard shipment, different content, and latitude 95.
   'Device A571992 Reading': { httpStatus: [200, 201], apiStatus: ['duplicate_conflict', 'partial'] },
   'GPS Location Shipment': { httpStatus: [200, 201], apiStatus: STORED },
   'Vaccine Shipment Checkpoint': { httpStatus: [200, 201], apiStatus: STORED, warningCodes: ['SENSOR_SENTINEL'] },
@@ -44,10 +39,7 @@ export const SAMPLE_EXPECTATIONS: Record<string, Omit<Expectation, 'note'>> = {
   },
   'Cellular Location Only': { httpStatus: [200, 201], apiStatus: STORED, warningCodes: ['SENSOR_SENTINEL'] },
   'Standard Temperature Shipment Update': { httpStatus: [200, 201], apiStatus: STORED },
-  // Same key as the standard shipment, different content, and longitude -200.
   'Device A571992 Follow-up Reading': { httpStatus: [200, 201], apiStatus: ['duplicate_conflict', 'partial'] },
-  // AccountId 999. The deployed sender uses a key scoped to the demo account (478), and
-  // the API rejects a reading for another account. An unscoped key stores it.
   'Clinical Supply Shipment': {
     httpStatus: [422],
     apiStatus: ['rejected'],
@@ -59,7 +51,6 @@ export const SAMPLE_EXPECTATIONS: Record<string, Omit<Expectation, 'note'>> = {
   'Entity and Device Name': { httpStatus: [422], apiStatus: ['rejected'], errorCodes: ['DEVICE_ID_INVALID'] },
 };
 
-/** Extra text for the UI note (and its tooltip) where the expected outcome needs a reason. */
 const SAMPLE_NOTES: Record<string, string> = {
   'Clinical Supply Shipment':
     'AccountId is 999. With a key scoped to account 478 (the demo key) the API answers 422 ACCOUNT_MISMATCH. With an unscoped key it stores the reading. Both count as expected.',

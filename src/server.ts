@@ -15,11 +15,8 @@ import { assertPublicHost, guardedFetch, resolveHostDns, type ResolveHost } from
 
 export interface AppDeps {
   config: Config;
-  /** fetch for the configured TARGET_URL. */
   fetchImpl?: FetchLike;
-  /** fetch for an override URL. Defaults to guardedFetch (address check at connect time, no redirects). */
   overrideFetchImpl?: FetchLike;
-  /** DNS lookup for the override address check. Injected in tests. */
   resolveHost?: ResolveHost;
   history?: RunHistory;
   now?: () => number;
@@ -53,7 +50,6 @@ export function createApp({
   const perIp = new TokenBucket(config.sendPerMinute, now);
   const global = new TokenBucket(config.sendPerMinuteGlobal, now);
 
-  /** Picks the target and, for an override URL, checks its addresses after DNS. */
   async function targetFor(overrides: Overrides): Promise<{ target: Target; fetchFn: FetchLike }> {
     const target = resolveTarget(config, overrides);
     if (!target.urlOverridden) return { target, fetchFn: fetchImpl };
@@ -68,7 +64,6 @@ export function createApp({
     c.header('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'");
   });
 
-  // One random id per browser. Run history is scoped to it, so visitors do not see each other's runs.
   app.use('*', async (c, next) => {
     let session = getCookie(c, SESSION_COOKIE);
     if (!session || !SESSION_ID.test(session)) {
@@ -83,7 +78,6 @@ export function createApp({
   app.onError((err, c) => {
     if (err instanceof TargetError) return c.json({ error: 'bad_target', message: err.message }, 400);
     if (err instanceof UnknownScenarioError) return c.json({ error: 'unknown_scenario', message: err.message }, 400);
-    // bodyLimit and other Hono middleware throw HTTPException (for example 413). Keep its status.
     if (err instanceof HTTPException) {
       return c.json({ error: err.status === 413 ? 'body_too_large' : 'bad_request', message: err.message }, err.status);
     }
@@ -177,13 +171,12 @@ function loadStatic(): Map<string, string> {
     try {
       out.set(file, readFileSync(PUBLIC_DIR + file, 'utf8'));
     } catch {
-      // A missing optional file (for example the favicon) just is not served.
+      // A missing optional file, such as the favicon, is not served.
     }
   }
   return out;
 }
 
-/** Client IP: first X-Forwarded-For entry behind a trusted proxy (Render), else the socket address. */
 function clientIp(c: Context, trustProxy: boolean): string {
   if (trustProxy) {
     const first = c.req.header('X-Forwarded-For')?.split(',')[0]?.trim();
@@ -192,7 +185,7 @@ function clientIp(c: Context, trustProxy: boolean): string {
   try {
     return getConnInfo(c).remote.address ?? 'unknown';
   } catch {
-    return 'unknown'; // app.request() in tests has no socket
+    return 'unknown';
   }
 }
 

@@ -1,7 +1,3 @@
-/**
- * Small seedable RNG (mulberry32). The same seed always gives the same sequence,
- * so generated payloads are stable in tests and reproducible from the UI.
- */
 export interface Rng {
   next(): number;
   float(min: number, max: number): number;
@@ -28,7 +24,6 @@ export function createRng(seed: number): Rng {
     float: (min, max) => min + next() * (max - min),
     int,
     normal: (mean, sd) => {
-      // Box-Muller transform.
       const u = 1 - next();
       const v = next();
       return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);

@@ -11,13 +11,8 @@ export interface FleetDevice {
   publicShipmentId: string;
 }
 
-/**
- * The demo account. Every realistic and edge-case payload uses it, so a deployed sender
- * can use an API key scoped to this one account.
- */
 export const DEMO_ACCOUNT_ID = 478;
 
-/** The default fleet: fixed IMEIs, so readings from many runs pile up on the same devices. */
 export const DEFAULT_FLEET: readonly FleetDevice[] = [
   {
     imei: '864475040010017',
@@ -45,7 +40,6 @@ export const DEFAULT_FLEET: readonly FleetDevice[] = [
   },
 ];
 
-/** A fleet with random IMEIs, so edge-case runs never collide with earlier runs. */
 export function randomFleet(rng: Rng, size = 1): FleetDevice[] {
   return Array.from({ length: size }, (_, i) => {
     const base = DEFAULT_FLEET[i % DEFAULT_FLEET.length]!;
@@ -61,17 +55,14 @@ export function randomFleet(rng: Rng, size = 1): FleetDevice[] {
 export interface RealisticOptions {
   count: number;
   seed: number;
-  /** Epoch ms of the newest reading. Defaults to Date.now(). */
   now?: number;
   fleet?: readonly FleetDevice[];
-  /** true forces one excursion, false disables it, undefined lets the seed decide (50%). */
   excursion?: boolean;
   intervalMinutes?: number;
 }
 
 export interface Excursion {
   imei: string;
-  /** Indexes into `payloads` of the readings that are part of the excursion. */
   indexes: number[];
   peakCelsius: number;
 }
@@ -85,11 +76,6 @@ const TRUCK_KM_PER_HOUR = 80;
 const SETPOINT_C = 5;
 const EXCURSION_RISE_C = [2.5, 5.5, 6.5, 4];
 
-/**
- * N readings from a small fleet, round robin across devices, 15 minutes apart per
- * device. Temperatures are 2-8 C with noise, optionally one excursion above 8 C.
- * Pure: the same options always give the same payloads.
- */
 export function generateRealistic(opts: RealisticOptions): RealisticResult {
   const { count, seed } = opts;
   const fleet = opts.fleet ?? DEFAULT_FLEET;
@@ -236,7 +222,6 @@ function signalStrength(dbm: number): SignalStrength {
 }
 
 function unitVector(rng: Rng) {
-  // A box sits mostly upright: z dominates, with a random tilt.
   const x = rng.normal(0, 0.3);
   const y = rng.normal(0, 0.3);
   const z = 1;

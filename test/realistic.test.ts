@@ -32,7 +32,6 @@ describe('realistic generator', () => {
     const a = generateRealistic({ count: 12, seed: 1234, now: NOW });
     const b = generateRealistic({ count: 12, seed: 1234, now: NOW });
     expect(a).toEqual(b);
-    // Snapshot of a few fields keeps the generator from drifting silently.
     expect(
       a.payloads.slice(0, 3).map((p) => ({
         id: p.DeviceId,
@@ -99,7 +98,6 @@ describe('realistic generator', () => {
   it('moves along the lane toward the destination', () => {
     const { payloads } = generateRealistic({ count: 60, seed: 5, now: NOW });
     const truck = payloads.filter((p) => p.DeviceId === DEFAULT_FLEET[0]!.imei);
-    // Pharr TX to Bronx NY runs north-east: latitude goes up overall.
     expect(truck[truck.length - 1]!.Location.Latitude).toBeGreaterThan(truck[0]!.Location.Latitude);
   });
 
@@ -171,7 +169,6 @@ describe('scenario plans', () => {
     for (const s of steps) expect(s.expect.httpStatus.length).toBeGreaterThan(0);
     const rejected = steps.filter((s) => s.expect.apiStatus?.includes('rejected')).map((s) => s.label);
     expect(rejected).toEqual(['Device Name Only', 'Clinical Supply Shipment', 'Entity and Device Name']);
-    // AccountId 999: rejected with a key scoped to 478, stored with an unscoped key.
     const clinical = steps.find((s) => s.label === 'Clinical Supply Shipment')!;
     expect(clinical.expect.errorCodes).toEqual(['ACCOUNT_MISMATCH']);
     expect(clinical.expect.alternatives?.[0]?.apiStatus).toEqual(['processed', 'duplicate']);

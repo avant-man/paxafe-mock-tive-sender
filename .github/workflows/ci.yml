@@ -1,8 +1,5 @@
 name: CI
 
-# This repo has no database. Tests use an in-process stub API. The live contract test
-# (test/contract.live.test.ts) skips here, because LIVE_TARGET_URL and LIVE_TARGET_KEY are not set.
-
 on:
   push:
     branches: [main]
@@ -28,7 +25,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test   # uses an in-process stub API, no network and no Postgres needed
+      - run: npm test
       - run: npm run build
 
   docker:

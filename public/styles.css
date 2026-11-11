@@ -1,4 +1,4 @@
-/* The hidden attribute must win over component display rules such as .field { display: grid }. */
+/* [hidden] must win over component display rules. */
 [hidden] { display: none !important; }
 
 :root {
@@ -182,7 +182,6 @@ dialog::backdrop { background: rgb(0 0 0 / 45%); }
   .form, .override { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
 
-  /* Table becomes a list of cards. */
   table.results thead { display: none; }
   table.results, .results tbody, .results tr, .results td { display: block; width: 100%; }
   .results tr.item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; padding: 6px 4px; }

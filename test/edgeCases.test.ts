@@ -13,7 +13,6 @@ function build(id: string, index = 0, batchSize = 5) {
   return { edge, ...edge.build(ctx(index, batchSize)) };
 }
 
-/** Each payload step differs from its base only on the case's paths. */
 function expectOnlyIntendedChanges(id: string, index = 0) {
   const { edge, base, steps } = build(id, index);
   const mutated = steps[steps.length - 1]!.payload;
@@ -51,7 +50,6 @@ describe('edge case catalogue', () => {
 
   it('edge-suite covers every case once', () => {
     const steps = buildPlan('edge-suite', { seed: 5, now: NOW }).steps;
-    // duplicate and conflict send two requests each.
     expect(steps).toHaveLength(EDGE_CASES.length + 2);
   });
 });
@@ -63,10 +61,8 @@ describe('each edge case breaks exactly its intended rule', () => {
       const bad = loc.Latitude < -90 || loc.Latitude > 90 || loc.Longitude < -180 || loc.Longitude > 180 || (loc.Latitude === 0 && loc.Longitude === 0);
       expect(bad).toBe(true);
     }
-    // Out-of-range variants fail the schema only at the coordinate.
     expect(schemaErrorPaths(build('invalid-coordinates', 0).steps[0]!.payload)).toEqual(['/Location/Latitude']);
     expect(schemaErrorPaths(build('invalid-coordinates', 1).steps[0]!.payload)).toEqual(['/Location/Longitude']);
-    // 0,0 is schema-valid, it breaks only the "not both 0" rule.
     expect(schemaErrorPaths(build('invalid-coordinates', 2).steps[0]!.payload)).toEqual([]);
   });
 
@@ -175,7 +171,6 @@ describe('each edge case breaks exactly its intended rule', () => {
   });
 
   it('every edge case id has a dedicated test above', () => {
-    // Guard: adding a case without a rule test should fail here.
     expect(EDGE_CASES.map((c) => c.id).sort()).toEqual(
       [
         'batch',

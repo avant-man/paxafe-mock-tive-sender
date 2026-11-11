@@ -4,12 +4,9 @@ import type { Expectation, Plan, Step } from './types.js';
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface Target {
-  /** Base URL of the Integration API, without a trailing slash. */
   url: string;
   apiKey?: string;
-  /** True when the URL or key came from a per-request override. */
   overridden?: boolean;
-  /** True when the URL differs from TARGET_URL. Such a target goes through the SSRF guard. */
   urlOverridden?: boolean;
 }
 
@@ -18,7 +15,6 @@ export interface SendResult {
   label: string;
   imei: string | null;
   httpStatus: number;
-  /** `status` from the response, `batch` for 207, `error` for other non-JSON or error bodies. */
   apiStatus: string;
   warnings: number;
   errors: number;
@@ -26,7 +22,6 @@ export interface SendResult {
   errorCodes: string[];
   latencyMs: number;
   eventId: string | null;
-  /** Number of items in `results` for a batch response. */
   batchSize?: number;
   expect: Expectation;
   matched: boolean;
@@ -66,7 +61,6 @@ export interface SendOptions {
   count?: number;
 }
 
-/** Bodies larger than this are kept only as a preview in the run history. */
 const PREVIEW_LIMIT = 16 * 1024;
 
 export const WEBHOOK_PATH = '/api/webhook/tive';

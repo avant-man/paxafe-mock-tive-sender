@@ -5,20 +5,14 @@ export interface Config {
   port: number;
   targetUrl: string;
   targetApiKey: string | undefined;
-  /** When false (the default), the UI and API cannot change the target URL or key. */
   allowOverride: boolean;
-  /** Hosts an override URL may point at (TARGET_ALLOWLIST, comma separated). Empty blocks every URL override. */
   targetAllowlist: string[];
   requestTimeoutMs: number;
-  /** Sends allowed per client IP per minute on /api/send. */
   sendPerMinute: number;
-  /** Sends allowed per minute in total on /api/send, a backstop when IPs are spoofed. */
   sendPerMinuteGlobal: number;
-  /** Read the client IP from X-Forwarded-For (set on Render, behind its proxy). */
   trustProxy: boolean;
 }
 
-/** Loads `.env` from the working directory when present (local runs only). */
 export function loadDotEnv(): void {
   try {
     process.loadEnvFile('.env');
@@ -64,12 +58,7 @@ export interface Overrides {
   apiKey?: string | undefined;
 }
 
-/**
- * Picks the target for one request. The server key is only ever sent to the
- * configured TARGET_URL: if the caller overrides the URL without a key, no key is sent.
- * A URL override must name an allowlisted host. The caller must still run
- * assertPublicHost on it (DNS) when `urlOverridden` is true.
- */
+// Never send the server key to an overridden URL.
 export function resolveTarget(config: Config, overrides: Overrides = {}): Target {
   const urlOverride = overrides.targetUrl?.trim() || undefined;
   const keyOverride = overrides.apiKey?.trim() || undefined;

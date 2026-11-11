@@ -24,8 +24,7 @@ const FORCE_EXIT_MS = 10_000;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     console.log(JSON.stringify({ msg: 'shutting down', signal }));
-    // A run in flight can hold a connection for up to REQUEST_TIMEOUT_MS per request.
-    // Render waits 30 s after SIGTERM, so exit on our own after 10 s.
+    // Render waits 30 s after SIGTERM, so force exit first.
     setTimeout(() => {
       console.error(JSON.stringify({ msg: 'forced exit after timeout', timeoutMs: FORCE_EXIT_MS }));
       process.exit(1);

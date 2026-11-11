@@ -1,9 +1,3 @@
-/**
- * Contract check against a real Integration API. Skipped unless both are set:
- *   LIVE_TARGET_URL=http://localhost:3000 LIVE_TARGET_KEY=... npm test -- contract.live
- * Every scenario runs once and every result must match its expected outcome. Works with
- * an unscoped key and with a key scoped to the demo account (478).
- */
 import { describe, expect, it } from 'vitest';
 import { normalizeUrl } from '../src/config.js';
 import { buildPlan, listScenarios } from '../src/generators/index.js';

@@ -34,7 +34,6 @@ async function main(): Promise<number> {
 
   loadDotEnv();
   const config = loadConfig();
-  // The CLI runs locally, so an explicit --target may use the env key too.
   const targetUrl = values.target ? normalizeUrl(values.target) : config.targetUrl;
   const target = resolveTarget({ ...config, targetUrl, allowOverride: true }, { apiKey: values.key });
   const plan = buildPlan(values.scenario!, {

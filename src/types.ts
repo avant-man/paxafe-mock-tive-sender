@@ -1,4 +1,3 @@
-/** Shape of a Tive webhook payload (see schemas/tive-incoming-schema.json). */
 export interface TivePayload {
   EntityName?: string;
   EntryTimeEpoch: number;
@@ -48,36 +47,21 @@ export interface GeoPoint {
   FormattedAddress: string | null;
 }
 
-/** What the sender expects the Integration API to answer for one request. */
 export interface Expectation {
-  /** Accepted HTTP status codes. */
   httpStatus: number[];
-  /** Accepted `status` values in the response body (single item responses). */
   apiStatus?: string[];
-  /** Error codes that must be present in the response. */
   errorCodes?: string[];
-  /** Warning codes that must be present (skipped when the API answers `duplicate`). */
   warningCodes?: string[];
-  /** For batch requests: the number of items in `results`. */
   batchSize?: number;
-  /**
-   * Other answers that also count as expected, for a request whose outcome depends on how
-   * the target is set up (for example a key scoped to one account). Any one match is enough.
-   */
   alternatives?: Omit<Expectation, 'note' | 'alternatives'>[];
-  /** One line that says what this request tests. */
   note: string;
 }
 
-/** One HTTP request the sender will make. */
 export interface Step {
   label: string;
-  /** Raw request body, sent as is. */
   body: string;
-  /** Parsed body for display and tests. Undefined when the body is not valid JSON. */
   payload?: unknown;
   contentType: string;
-  /** `default` uses the configured key, `wrong` sends a random bad key, `none` sends no key. */
   auth: 'default' | 'wrong' | 'none';
   imei?: string;
   expect: Expectation;

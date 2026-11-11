@@ -9,7 +9,6 @@ import { createStubApi } from './support/stubApi.js';
 const KEY = 'test-key-local';
 const TARGET = 'http://api.test';
 
-/** Fake DNS for the override address check. */
 const DNS: Record<string, string[]> = {
   'other.test': ['93.184.216.34'],
   'api.test': ['93.184.216.35'],
@@ -38,7 +37,6 @@ function setup(env: Record<string, string> = {}, now?: () => number, stubOpts: {
   });
   const history = new RunHistory(200);
   const app = createApp({ config, fetchImpl, overrideFetchImpl: fetchImpl, resolveHost, history, ...(now ? { now } : {}) });
-  // One browser: keep the session cookie the server sets.
   let cookie = '';
   const request = async (path: string, init: RequestInit = {}, jar = true) => {
     const headers = new Headers(init.headers);
@@ -94,7 +92,7 @@ describe('sender API against a contract stub', () => {
   it('runs every scenario and every result matches its expectation', async () => {
     const { send } = setup();
     for (const s of listScenarios()) {
-      if (s.id === 'samples') continue; // Samples share keys on purpose, checked below.
+      if (s.id === 'samples') continue;
       const count = s.countMeaning === 'batch size' ? 10 : Math.min(3, s.maxCount);
       const { status, run } = await send({ scenario: s.id, count, seed: 42 });
       expect(status).toBe(200);
@@ -226,7 +224,6 @@ describe('sender API against a contract stub', () => {
     expect(setCookie).toMatch(/HttpOnly/i);
     expect(setCookie).toMatch(/SameSite=Lax/i);
     expect((await (await request('/api/history')).json()).runs).toHaveLength(1);
-    // Another browser (no cookie, or another id) sees nothing, not even by run id.
     const other = { Cookie: 'sender_session=00000000-0000-4000-8000-000000000000' };
     expect((await (await app.request('/api/history', { headers: other })).json()).runs).toEqual([]);
     expect((await app.request(`/api/history/${run.id}`, { headers: other })).status).toBe(404);
@@ -249,9 +246,8 @@ describe('sender API against a contract stub', () => {
     const third = await send({ scenario: 'malformed-json', count: 1 }, ip('1.1.1.1'));
     expect(third.status).toBe(429);
     expect(third.res.headers.get('retry-after')).toBe('30');
-    // Another IP has its own bucket.
     expect((await send({ scenario: 'malformed-json', count: 1 }, ip('2.2.2.2'))).status).toBe(200);
-    t += 30_000; // one token back
+    t += 30_000;
     expect((await send({ scenario: 'malformed-json', count: 1 }, ip('1.1.1.1'))).status).toBe(200);
   });
 

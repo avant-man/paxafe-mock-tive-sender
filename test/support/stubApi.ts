@@ -1,8 +1,3 @@
-/**
- * A tiny in-memory stand-in for the Integration API, following the response contract
- * in DESIGN-SPEC.md. Used by the server tests and as a local fallback target:
- *   npx tsx test/support/stubApi.ts   (port 3000, key test-key-local)
- */
 import { createHash, randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 
@@ -11,10 +6,6 @@ type Item = Record<string, unknown>;
 
 const SENTINELS = new Set([327.67, -327.68, 32767, -32768, -3276.8, 3276.7]);
 
-/**
- * `accountId` makes the key scoped to one account, like `npm run create-key -- name 478`
- * in the API: a payload with another AccountId gets 422 ACCOUNT_MISMATCH.
- */
 export function createStubApi(apiKey = 'test-key-local', opts: { accountId?: number } = {}): Hono {
   const app = new Hono();
   const stored = new Map<string, { hash: string; payload: Item }>();

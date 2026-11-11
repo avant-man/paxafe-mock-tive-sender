@@ -10,7 +10,6 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 export const validateTive = ajv.compile(schema);
 
-/** JSON pointer paths that fail the schema. A missing required property points at the property itself. */
 export function schemaErrorPaths(payload: unknown): string[] {
   validateTive(payload);
   const errors: ErrorObject[] = validateTive.errors ?? [];
@@ -23,7 +22,6 @@ export function schemaErrorPaths(payload: unknown): string[] {
   ];
 }
 
-/** Paths (JSON pointers) where two JSON values differ. */
 export function diffPaths(a: unknown, b: unknown, path = ''): string[] {
   if (Object.is(a, b)) return [];
   const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;

@@ -1,10 +1,5 @@
 import type { Run } from './sender.js';
 
-/**
- * In-memory run history, newest first, capped in total. Lost on restart by design (no
- * database). Each run belongs to one browser session, so a visitor sees only the runs
- * they sent. The session id comes from a random cookie (see server.ts).
- */
 export class RunHistory {
   private runs: { session: string; run: Run }[] = [];
 

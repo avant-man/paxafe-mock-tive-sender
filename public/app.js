@@ -1,5 +1,3 @@
-// Mock Tive Sender UI. Plain DOM, no build step. All text goes in through textContent.
-
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -47,8 +45,6 @@ function overrideHeaders() {
   return h;
 }
 
-// ---------- chips ----------
-
 function statusTone(status) {
   switch (status) {
     case 'processed': return 'ok';
@@ -72,8 +68,6 @@ function httpTone(code) {
 }
 
 const chip = (text, tone = '') => el('span', { class: `chip ${tone}`.trim(), text });
-
-// ---------- setup ----------
 
 async function init() {
   const [{ scenarios }, config] = await Promise.all([api('/api/scenarios'), api('/api/config')]);
@@ -136,8 +130,6 @@ async function checkTarget() {
   }
 }
 
-// ---------- send ----------
-
 async function onSend(event) {
   event.preventDefault();
   const s = currentScenario();
@@ -175,8 +167,6 @@ async function onSend(event) {
     btn.disabled = false;
   }
 }
-
-// ---------- render ----------
 
 function render() {
   renderSummary();
@@ -292,8 +282,6 @@ async function openRun(id) {
   state.expanded.clear();
   render();
 }
-
-// ---------- verify ----------
 
 async function verify(imei) {
   const dialog = $('verify-dialog');

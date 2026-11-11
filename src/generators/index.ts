@@ -65,7 +65,6 @@ export interface BuildOptions {
 
 export class UnknownScenarioError extends Error {}
 
-/** Builds every request for a scenario. Pure for a given seed and now. */
 export function buildPlan(scenario: string, opts: BuildOptions = {}): Plan {
   const info = listScenarios().find((s) => s.id === scenario);
   if (!info) throw new UnknownScenarioError(`Unknown scenario: ${scenario}`);
@@ -95,8 +94,6 @@ export function buildPlan(scenario: string, opts: BuildOptions = {}): Plan {
   } else if (scenario === 'samples') {
     steps = sampleSteps(count);
   } else {
-    // Mix the scenario into the seed, so the suite and a single case with the same
-    // seed still use different devices and never collide on idempotency keys.
     const caseSeed = (seed ^ hashString(scenario)) >>> 0;
     if (scenario === 'edge-suite') {
       steps = EDGE_CASES.flatMap((c) => c.build({ seed: caseSeed, now, index: 0, batchSize: 5 }).steps);

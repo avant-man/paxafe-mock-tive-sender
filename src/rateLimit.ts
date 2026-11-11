@@ -1,7 +1,3 @@
-/**
- * Token bucket per key: `perMinute` capacity, refilled continuously. In memory, so the
- * limit is per instance, which is enough for one free-tier instance.
- */
 export class TokenBucket {
   private readonly buckets = new Map<string, { tokens: number; updatedAt: number }>();
   private readonly ratePerMs: number;
@@ -14,7 +10,6 @@ export class TokenBucket {
     this.ratePerMs = perMinute / 60_000;
   }
 
-  /** Takes one token. Returns the seconds to wait when the bucket is empty. */
   take(key: string): { allowed: boolean; retryAfterSec: number } {
     const t = this.now();
     const bucket = this.buckets.get(key) ?? { tokens: this.perMinute, updatedAt: t };

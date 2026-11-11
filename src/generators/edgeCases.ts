@@ -2,23 +2,18 @@ import type { Expectation, Step, TivePayload } from '../types.js';
 import { cToF, generateRealistic, randomFleet } from './realistic.js';
 import { createRng, type Rng } from './rng.js';
 
-/** The Integration API rejects bodies above this size with 413. */
 export const BODY_LIMIT_BYTES = 1024 * 1024;
 export const MAX_BATCH = 100;
 export const SENTINELS = [327.67, -327.68, 32767, -32768, -3276.8, 3276.7] as const;
 
 export interface EdgeCaseContext {
   seed: number;
-  /** Epoch ms used as "now". */
   now: number;
-  /** Which instance this is (0-based), used to rotate variants. */
   index: number;
-  /** Batch size, only used by the batch case. */
   batchSize: number;
 }
 
 export interface EdgeCaseInstance {
-  /** The valid payload(s) the case starts from, before the single mutation. */
   base: TivePayload[];
   steps: Step[];
 }
@@ -27,18 +22,14 @@ export interface EdgeCase {
   id: string;
   label: string;
   description: string;
-  /** The one rule this case breaks. */
   rule: string;
-  /** JSON pointer paths the mutation is allowed to touch. Empty for transport-level cases. */
   paths: string[];
-  /** What `count` means for this case. */
   countMeaning: 'instances' | 'batch size';
   defaultCount: number;
   maxCount: number;
   build(ctx: EdgeCaseContext): EdgeCaseInstance;
 }
 
-/** One valid reading on a random device, so each instance has its own idempotency key. */
 export function basePayload(rng: Rng, now: number): TivePayload {
   const { payloads } = generateRealistic({
     count: 1,
@@ -73,7 +64,6 @@ function setUtc(p: TivePayload): void {
 }
 
 function rngFor(ctx: EdgeCaseContext, salt: number): Rng {
-  // Mix seed, case and instance so each instance gets its own devices.
   return createRng((ctx.seed ^ Math.imul(salt + 1, 0x9e3779b1) ^ Math.imul(ctx.index + 1, 0x85ebca6b)) >>> 0);
 }
 
